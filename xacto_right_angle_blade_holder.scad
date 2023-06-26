@@ -2,25 +2,21 @@
 
 rightHanded=true;
 
+small=false;
+
 wallThickness=2;
 
 holderThickness=12;
 
-bladeRecessBottomHeight=3;  // from bottom surface (enough room for screw head and enough for screw threads to hold)
+bladeRecessBottomHeight=5;  // from bottom surface (enough room for screw head and enough for screw threads to hold)
 
 // Small x-acto blade
-bladeRecessWidth=6.1;  // root width of exacto blade (slightly larger)
-bladeRecessLength=12; // from right side (root length of xacto blade)
-bladeMountHoleDia=2.4; // slightly smaller than the opening in the actual blade
-bladeMountHoleInset=7; // closer to root end of elongated slot, to prevent slide-out
+bladeRecessWidth=(small) ? 6.1 : 9.1;  // root width of exacto blade (slightly larger)
+bladeRecessLength=(small) ? 12 : 17; // from right side (root length of xacto blade)
+bladeMountHoleInset=(small) ? 7 : 11; // closer to root end of elongated slot, to prevent slide-out
 
-/*
-// Large x-acto blade
-bladeRecessWidth=9.1;  // root width of exacto blade (slightly larger)
-bladeRecessLength=17; // from right side (root length of xacto blade)
-bladeMountHoleDia=2.75; // slightly smaller than the opening in the actual blade
-bladeMountHoleInset=11; // closer to root end of elongated slot, to prevent slide-out
-*/
+bladeMountHoleDia=2.75;
+bladeMountScrewHeadDia=7;
 
 fingerHoleMajorDia=20;
 fingerHoleMinorDia=15;
@@ -36,7 +32,7 @@ thumbHoleYRotation=-20;
 thumbHoleZRotation=20;
 thumbHoleOutTaperFactor=1.4;
 
-holderBodyDia=thumbHoleMajorDia+fingerHoleMajorDia+bladeRecessWidth+wallThickness*4;
+holderBodyDia=thumbHoleMajorDia+fingerHoleMajorDia+bladeRecessWidth;
 holderBodyElongation=5;
 handleEndFlatteningFactor=0.85;
 
@@ -56,37 +52,51 @@ module holderWithHandedness() {
 }
 
 module holder() {
-    difference() {
-        // body
-        hull() { 
-            scale([handleEndFlatteningFactor,1,1])
-                cylinder(d=holderBodyDia, h=holderThickness);
-            translate([holderBodyElongation,0,0])
-                cylinder(d=holderBodyDia, h=holderThickness);
+    bodyXDimension=holderBodyDia*1.5+holderBodyElongation;
+    clippingSphereXScale=bodyXDimension/holderThickness;
+    clippingSphereYScale=(bladeRecessWidth+fingerHoleMinorDia/2+thumbHoleMinorDia/2)/holderThickness;
+    intersection() {
+        // Bounding flat-bottomed sphere (dome) that clips off the full finger-hole sides
+        translate([holderBodyDia/2,0,0])
+            hull() {
+                scale([clippingSphereXScale,clippingSphereYScale,1])
+                    translate([0,0,holderThickness/2])
+                        sphere(d=holderThickness);
+                scale([clippingSphereXScale,clippingSphereYScale,1]) 
+                    cylinder(d=holderThickness, h=overlap);
+            }
+        difference() {
+            // body
+            hull() { 
+                scale([handleEndFlatteningFactor,1,1])
+                    cylinder(d=holderBodyDia, h=holderThickness);
+                translate([holderBodyElongation,0,0])
+                    cylinder(d=holderBodyDia, h=holderThickness);
+            }
+
+            // finger hole
+            rotate([0,fingerHoleYRotation,fingerHoleZRotation])
+                translate([0,bladeRecessWidth/2+fingerHoleMinorDia/2,-holderThickness])
+                    scale([1,fingerHoleMinorAxisScale,1])
+                        cylinder(d1=fingerHoleMajorDia, d2=fingerHoleMajorDia*fingerHoleOutTaperFactor ,h=holderThickness*3);
+
+            // thumb hole
+            rotate([0,thumbHoleYRotation,thumbHoleZRotation])
+                translate([0,-bladeRecessWidth/2-thumbHoleMinorDia/2,-holderThickness])
+                    scale([1,thumbHoleMinorAxisScale,1])
+                        cylinder(d1=thumbHoleMajorDia, d2=thumbHoleMajorDia*thumbHoleOutTaperFactor ,h=holderThickness*3);
+
+            // blade recess
+            translate([holderBodyElongation+holderBodyDia/2-bladeRecessLength,-bladeRecessWidth/2,bladeRecessBottomHeight])
+                cube([bladeRecessLength+overlap,bladeRecessWidth,holderThickness-bladeRecessBottomHeight+overlap]);
+            translate([holderBodyElongation+holderBodyDia/2-bladeMountHoleInset,0,-overlap])
+                cylinder(d=bladeMountHoleDia, h=holderThickness+overlap*2);       
+
+            // approach cutouts
+            translate([holderBodyElongation+holderBodyDia/2,approachCutoutDia/2+bladeRecessWidth/2+wallThickness,-overlap])
+                cylinder(d=approachCutoutDia, h=holderThickness+overlap*2);
+            translate([holderBodyElongation+holderBodyDia/2,-approachCutoutDia/2-bladeRecessWidth/2-wallThickness,-overlap])
+                cylinder(d=approachCutoutDia, h=holderThickness+overlap*2);
         }
-
-        // finger hole
-        rotate([0,fingerHoleYRotation,fingerHoleZRotation])
-            translate([0,bladeRecessWidth/2+fingerHoleMinorDia/2,-holderThickness])
-                scale([1,fingerHoleMinorAxisScale,1])
-                    cylinder(d1=fingerHoleMajorDia, d2=fingerHoleMajorDia*fingerHoleOutTaperFactor ,h=holderThickness*3);
-
-        // thumb hole
-        rotate([0,thumbHoleYRotation,thumbHoleZRotation])
-            translate([0,-bladeRecessWidth/2-thumbHoleMinorDia/2,-holderThickness])
-                scale([1,thumbHoleMinorAxisScale,1])
-                    cylinder(d1=thumbHoleMajorDia, d2=thumbHoleMajorDia*thumbHoleOutTaperFactor ,h=holderThickness*3);
-
-        // blade recess
-        translate([holderBodyElongation+holderBodyDia/2-bladeRecessLength,-bladeRecessWidth/2,bladeRecessBottomHeight])
-            cube([bladeRecessLength+overlap,bladeRecessWidth,holderThickness-bladeRecessBottomHeight+overlap]);
-        translate([holderBodyElongation+holderBodyDia/2-bladeMountHoleInset,0,-overlap])
-            cylinder(d=bladeMountHoleDia, h=holderThickness+overlap*2);       
-
-        // approach cutouts
-        translate([holderBodyElongation+holderBodyDia/2,approachCutoutDia/2+bladeRecessWidth/2+wallThickness,-overlap])
-            cylinder(d=approachCutoutDia, h=holderThickness+overlap*2);
-        translate([holderBodyElongation+holderBodyDia/2,-approachCutoutDia/2-bladeRecessWidth/2-wallThickness,-overlap])
-            cylinder(d=approachCutoutDia, h=holderThickness+overlap*2);
     }
 }
